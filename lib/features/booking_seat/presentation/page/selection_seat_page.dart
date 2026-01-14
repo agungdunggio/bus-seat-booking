@@ -1,26 +1,54 @@
 import 'package:bus_seat_booking/features/booking_seat/presentation/widget/bottom_navigation_widget.dart';
 import 'package:flutter/material.dart';
 
-import '../../domain/trip_info.dart';
+import 'package:bus_seat_booking/core/constants/bus_service.dart';
+import 'package:bus_seat_booking/core/utils/currency_utils.dart';
+import 'package:bus_seat_booking/features/booking_seat/presentation/widget/bus_service_toggle_widget.dart';
 import '../widget/legend_dot_widget.dart';
 import '../widget/seat_tile_widget.dart';
 
 class SeatSelectionScreen extends StatefulWidget {
-  const SeatSelectionScreen({super.key, required this.trip});
-
-  final TripInfo trip;
+  const SeatSelectionScreen({super.key});
 
   @override
   State<SeatSelectionScreen> createState() => _SeatSelectionScreenState();
 }
 
 class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
-  static const int _rows = 10;
+  BusService _service = BusService.regular;
 
   final Set<String> _selectedSeatIds = {};
   final List<String> _selectedSeatOrder = [];
 
+  bool _isValidSeatIdForCurrentService(String seatId) {
+    final match = RegExp(r'^(\d+)([A-D])$').firstMatch(seatId);
+    if (match == null) return false;
+    final row = int.tryParse(match.group(1) ?? '');
+    final letter = match.group(2);
+    if (row == null || letter == null) return false;
+    if (row < 1 || row > _service.rows) return false;
+    return _service.seatLetters.contains(letter);
+  }
+
+  void _sanitizeSelectionIfNeeded() {
+    final invalid = _selectedSeatIds
+        .where((s) => !_isValidSeatIdForCurrentService(s))
+        .toList(growable: false);
+    if (invalid.isEmpty) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        for (final s in invalid) {
+          _selectedSeatIds.remove(s);
+          _selectedSeatOrder.remove(s);
+        }
+      });
+    });
+  }
+
   void _toggleSeat(String seatId) {
+    if (_service.unavailableSeatIds.contains(seatId)) return;
     setState(() {
       if (_selectedSeatIds.contains(seatId)) {
         _selectedSeatIds.remove(seatId);
@@ -32,10 +60,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     });
   }
 
-  String _formatDate(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}-${d.month.toString().padLeft(2, '0')}-${d.year}';
-
-  int get _totalPrice => _selectedSeatIds.length * widget.trip.pricePerSeat;
+  int get _totalPrice => _selectedSeatIds.length * _service.pricePerSeat;
 
   Future<void> _confirmBooking() async {
     if (_selectedSeatIds.isEmpty) return;
@@ -52,12 +77,10 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${widget.trip.from} → ${widget.trip.to}'),
               const SizedBox(height: 6),
-              Text('Tanggal: ${_formatDate(widget.trip.date)}'),
               Text('Kursi: $selectedSeats'),
               const SizedBox(height: 6),
-              Text('Total: Rp $_totalPrice'),
+              Text('Total: ${formatRupiah(_totalPrice)}'),
             ],
           ),
           actions: [
@@ -102,6 +125,8 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _sanitizeSelectionIfNeeded();
+
     final theme = Theme.of(context);
     final canContinue = _selectedSeatIds.isNotEmpty;
     final selectedSeats = _selectedSeatIds.isEmpty
@@ -134,13 +159,30 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: const [
-                    LegendDotWidget(label: 'Tersedia', color: Colors.white),
-                    LegendDotWidget(label: 'Dipilih', color: Colors.indigo),
-                  ],
+                SizedBox(
+                  width: double.infinity,
+                  child: BusServiceToggleWidget(
+                    value: _service,
+                    onChanged: (v) {
+                      setState(() {
+                        _service = v;
+                        _selectedSeatIds.clear();
+                        _selectedSeatOrder.clear();
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Center(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      LegendDotWidget(label: 'Tersedia', color: Colors.white),
+                      LegendDotWidget(label: 'Dipilih', color: theme.colorScheme.primary),
+                      LegendDotWidget(label: 'Tidak tersedia', color: Colors.grey),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -166,38 +208,28 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                       blendMode: BlendMode.dstIn,
                       child: GridView.builder(
                         padding: const EdgeInsets.only(top: 36, bottom: 18),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 5, // A B | C D
+                        gridDelegate:
+                            SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: _service.gridColumns,
                           mainAxisSpacing: 10,
                           crossAxisSpacing: 10,
-                          childAspectRatio: 1,
+                          childAspectRatio: _service.seatTileAspectRatio,
                         ),
-                        itemCount: _rows * 5,
+                        itemCount: _service.rows * _service.gridColumns,
                         itemBuilder: (context, index) {
-                          final row = (index ~/ 5) + 1;
-                          final col = index % 5;
+                          final row = (index ~/ _service.gridColumns) + 1;
+                          final col = index % _service.gridColumns;
 
-                          if (col == 2) {
-                            return Center(
-                              child: Text(
-                                row.toString(), 
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800
-                                )
-                              )
-                            );
+                          if (col == _service.aisleColumnIndex) {
+                            return const SizedBox.shrink();
                           }
 
-                          final letter = switch (col) {
-                            0 => 'A',
-                            1 => 'B',
-                            3 => 'C',
-                            _ => 'D',
-                          };
+                          final letter = _service.seatLetterForGridColumn(col);
+                          if (letter == null) return const SizedBox.shrink();
 
                           final seatId = '$row$letter';
                           final selected = _selectedSeatIds.contains(seatId);
+                          final unavailable = _service.unavailableSeatIds.contains(seatId);
                           final personNumber = selected
                               ? (_selectedSeatOrder.indexOf(seatId) + 1)
                               : null;
@@ -205,6 +237,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                           return SeatTileWidget(
                             seatId: seatId,
                             selected: selected,
+                            unavailable: unavailable,
                             personNumber: personNumber,
                             onTap: () => _toggleSeat(seatId),
                           );
