@@ -1,6 +1,5 @@
 import 'package:bus_seat_booking/features/booking_seat/widget/bottom_navigation_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:bus_seat_booking/core/constants/bus_service.dart';
 import 'package:bus_seat_booking/core/local/booking_local_repository.dart';
@@ -84,12 +83,8 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     final reservedNow = _repo.getReservedSeats(_service);
     final conflict = _selectedSeatOrder.where(reservedNow.contains).toList();
     if (conflict.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Kursi ini sudah tidak tersedia: ${conflict.join(', ')}',
-          ),
-        ),
+      BottomToast.show(context,
+        message: 'Kursi ini sudah tidak tersedia: ${conflict.join(', ')}',
       );
       setState(() {
         for (final s in conflict) {
