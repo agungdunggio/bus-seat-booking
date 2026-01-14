@@ -4,10 +4,10 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:bus_seat_booking/core/constants/bus_service.dart';
 import 'package:bus_seat_booking/core/local/booking_local_repository.dart';
 import 'package:bus_seat_booking/core/local/local_boxes.dart';
-import 'package:bus_seat_booking/core/utils/currency_utils.dart';
 import 'package:bus_seat_booking/features/booking_seat/widget/bus_service_toggle_widget.dart';
 import 'package:bus_seat_booking/features/booking_seat/page/booking_history_page.dart';
 import 'package:bus_seat_booking/features/booking_seat/widget/bottom_toast_widget.dart';
+import 'package:bus_seat_booking/features/booking_seat/widget/confirm_booking_sheet.dart';
 import 'package:bus_seat_booking/features/booking_seat/widget/legend_dot_widget.dart';
 import 'package:bus_seat_booking/features/booking_seat/widget/seat_tile_widget.dart';
 
@@ -79,7 +79,6 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   Future<void> _confirmBooking() async {
     if (_selectedSeatIds.isEmpty) return;
 
-    final selectedSeats = _selectedSeatOrder.join(', ');
     final reservedNow = _repo.getReservedSeats(_service);
     final conflict = _selectedSeatOrder.where(reservedNow.contains).toList();
     if (conflict.isNotEmpty) {
@@ -95,37 +94,13 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       return;
     }
 
-    final ok = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Konfirmasi booking'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 6),
-              Text('Kursi: $selectedSeats'),
-              const SizedBox(height: 6),
-              Text('Total: ${formatRupiah(_totalPrice)}'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Batal'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Konfirmasi'),
-            ),
-          ],
-        );
-      },
+    final ok = await showConfirmBookingSheet(
+      context,
+      service: _service,
+      seatIds: List<String>.from(_selectedSeatOrder),
+      totalPrice: _totalPrice,
     );
-
-    if (ok != true) return;
+    if (!ok) return;
 
     await _repo.addBooking(
       service: _service,
@@ -137,24 +112,13 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       seatIds: List<String>.from(_selectedSeatOrder),
     );
 
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Berhasil'),
-          content: const Text('Booking berhasil dibuat.'),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
+    if (!mounted) return;
+    BottomToast.show(
+      context,
+      message: 'Booking berhasil dibuat.',
+      type: BottomToastType.success,
     );
 
-    if (!mounted) return;
     setState(() {
       _selectedSeatIds.clear();
       _selectedSeatOrder.clear();
@@ -162,7 +126,13 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
 
     if (!mounted) return;
     if (didReset) {
-      BottomToast.show(context, message: '${_service.label} sudah penuh, kursi di-reset untuk trip berikutnya.');
+      await Future.delayed(const Duration(milliseconds: 2800));
+      if (!mounted) return;
+      BottomToast.show(
+        context,
+        message: '${_service.label} sudah penuh, kursi di-reset untuk trip berikutnya.',
+        type: BottomToastType.info,
+      );
     }
   }
 
