@@ -1,11 +1,16 @@
 import 'package:bus_seat_booking/features/booking_seat/presentation/widget/bottom_navigation_widget.dart';
 import 'package:flutter/material.dart';
-
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:bus_seat_booking/core/constants/bus_service.dart';
+import 'package:bus_seat_booking/core/local/booking_local_repository.dart';
+import 'package:bus_seat_booking/core/local/local_boxes.dart';
 import 'package:bus_seat_booking/core/utils/currency_utils.dart';
 import 'package:bus_seat_booking/features/booking_seat/presentation/widget/bus_service_toggle_widget.dart';
-import '../widget/legend_dot_widget.dart';
-import '../widget/seat_tile_widget.dart';
+import 'package:bus_seat_booking/features/booking_seat/presentation/page/booking_history_page.dart';
+import 'package:bus_seat_booking/features/booking_seat/presentation/widget/bottom_toast_widget.dart';
+import 'package:bus_seat_booking/features/booking_seat/presentation/widget/legend_dot_widget.dart';
+import 'package:bus_seat_booking/features/booking_seat/presentation/widget/seat_tile_widget.dart';
 
 class SeatSelectionScreen extends StatefulWidget {
   const SeatSelectionScreen({super.key});
@@ -20,19 +25,29 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   final Set<String> _selectedSeatIds = {};
   final List<String> _selectedSeatOrder = [];
 
-  bool _isValidSeatIdForCurrentService(String seatId) {
-    final match = RegExp(r'^(\d+)([A-D])$').firstMatch(seatId);
-    if (match == null) return false;
-    final row = int.tryParse(match.group(1) ?? '');
-    final letter = match.group(2);
-    if (row == null || letter == null) return false;
-    if (row < 1 || row > _service.rows) return false;
-    return _service.seatLetters.contains(letter);
+  late final Box _reservedSeatsBox;
+  late final Box _bookingsBox;
+  late final BookingLocalRepository _repo;
+
+  @override
+  void initState() {
+    super.initState();
+    _reservedSeatsBox = Hive.box(LocalBoxes.reservedSeats);
+    _bookingsBox = Hive.box(LocalBoxes.bookings);
+    _repo = BookingLocalRepository(
+      bookingsBox: _bookingsBox,
+      reservedSeatsBox: _reservedSeatsBox,
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _repo.sanitizeOrResetReservedSeats(BusService.regular);
+      await _repo.sanitizeOrResetReservedSeats(BusService.express);
+    });
   }
 
   void _sanitizeSelectionIfNeeded() {
     final invalid = _selectedSeatIds
-        .where((s) => !_isValidSeatIdForCurrentService(s))
+        .where((s) => !_service.isValidSeatId(s))
         .toList(growable: false);
     if (invalid.isEmpty) return;
 
@@ -48,7 +63,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   }
 
   void _toggleSeat(String seatId) {
-    if (_service.unavailableSeatIds.contains(seatId)) return;
+    if (_repo.getReservedSeats(_service).contains(seatId)) return;
     setState(() {
       if (_selectedSeatIds.contains(seatId)) {
         _selectedSeatIds.remove(seatId);
@@ -66,6 +81,24 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     if (_selectedSeatIds.isEmpty) return;
 
     final selectedSeats = _selectedSeatOrder.join(', ');
+    final reservedNow = _repo.getReservedSeats(_service);
+    final conflict = _selectedSeatOrder.where(reservedNow.contains).toList();
+    if (conflict.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Kursi ini sudah tidak tersedia: ${conflict.join(', ')}',
+          ),
+        ),
+      );
+      setState(() {
+        for (final s in conflict) {
+          _selectedSeatIds.remove(s);
+          _selectedSeatOrder.remove(s);
+        }
+      });
+      return;
+    }
 
     final ok = await showDialog<bool>(
       context: context,
@@ -99,6 +132,16 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
 
     if (ok != true) return;
 
+    await _repo.addBooking(
+      service: _service,
+      seatIds: List<String>.from(_selectedSeatOrder),
+      totalPrice: _totalPrice,
+    );
+    final didReset = await _repo.reserveSeatsOrResetIfFull(
+      service: _service,
+      seatIds: List<String>.from(_selectedSeatOrder),
+    );
+
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -121,6 +164,11 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       _selectedSeatIds.clear();
       _selectedSeatOrder.clear();
     });
+
+    if (!mounted) return;
+    if (didReset) {
+      BottomToast.show(context, message: '${_service.label} sudah penuh, kursi di-reset untuk trip berikutnya.');
+    }
   }
 
   @override
@@ -133,26 +181,31 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
         ? '-'
         : _selectedSeatOrder.join(', ');
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Bus Seat Booking',
-          style: TextStyle(
-            fontSize: 24, 
-            fontWeight: FontWeight.w600
+    return ValueListenableBuilder(
+      valueListenable: _reservedSeatsBox.listenable(),
+      builder: (context, _, __) {
+        final reservedSeatsLive = _repo.getReservedSeats(_service);
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text(
+              'Bus Seat Booking',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
             ),
+            centerTitle: false,
+            actions: [
+              IconButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const BookingHistoryPage()),
+                  );
+                },
+                icon: const Icon(Icons.history_rounded),
+              ),
+            ],
+            surfaceTintColor: theme.colorScheme.surface,
+            backgroundColor: theme.colorScheme.surface,
           ),
-        centerTitle: false,
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.history_rounded),
-          ),
-        ],
-        surfaceTintColor: theme.colorScheme.surface,
-        backgroundColor: theme.colorScheme.surface,
-      ),
-      body: Column(
+          body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -169,6 +222,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                         _selectedSeatIds.clear();
                         _selectedSeatOrder.clear();
                       });
+                      _repo.sanitizeOrResetReservedSeats(v);
                     },
                   ),
                 ),
@@ -229,7 +283,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
 
                           final seatId = '$row$letter';
                           final selected = _selectedSeatIds.contains(seatId);
-                          final unavailable = _service.unavailableSeatIds.contains(seatId);
+                          final unavailable = reservedSeatsLive.contains(seatId);
                           final personNumber = selected
                               ? (_selectedSeatOrder.indexOf(seatId) + 1)
                               : null;
@@ -250,13 +304,15 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
             ),
           ),
         ],
-      ),
-      bottomNavigationBar: BottomNavigationWidget(
-        selectedSeats: selectedSeats,
-        totalPrice: _totalPrice,
-        canContinue: canContinue,
-        onConfirmBooking: _confirmBooking,
-      ),
+          ),
+          bottomNavigationBar: BottomNavigationWidget(
+            selectedSeats: selectedSeats,
+            totalPrice: _totalPrice,
+            canContinue: canContinue,
+            onConfirmBooking: _confirmBooking,
+          ),
+        );
+      },
     );
   }
 }

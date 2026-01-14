@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'features/booking_seat/presentation/page/selection_seat_page.dart';
+import 'core/local/local_boxes.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  await Hive.openBox(LocalBoxes.reservedSeats);
+  await Hive.openBox(LocalBoxes.bookings);
   runApp(const MyApp());
 }
 

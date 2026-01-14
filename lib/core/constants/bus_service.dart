@@ -40,6 +40,18 @@ extension BusServiceX on BusService {
         BusService.express => const ['A', 'B', 'C', 'D'],
       };
 
+  int get totalSeats => rows * seatLetters.length;
+
+  bool isValidSeatId(String seatId) {
+    final match = RegExp(r'^(\d+)([A-D])$').firstMatch(seatId);
+    if (match == null) return false;
+    final row = int.tryParse(match.group(1) ?? '');
+    final letter = match.group(2);
+    if (row == null || letter == null) return false;
+    if (row < 1 || row > rows) return false;
+    return seatLetters.contains(letter);
+  }
+
   String? seatLetterForGridColumn(int col) {
     if (col == aisleColumnIndex) return null;
     return switch (this) {
@@ -51,10 +63,5 @@ extension BusServiceX on BusService {
         },
     };
   }
-
-  Set<String> get unavailableSeatIds => switch (this) {
-        BusService.regular => const {'1A', '2C', '3D', '5B'},
-        BusService.express => const {'1A', '2C', '3D'},
-      };
 }
 
