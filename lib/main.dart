@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-import 'features/booking_seat/presentation/page/selection_seat_page.dart';
+import 'features/booking_seat/page/selection_seat_page.dart';
 import 'core/local/local_boxes.dart';
 
 Future<void> main() async {

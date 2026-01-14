@@ -1,4 +1,4 @@
-import 'package:bus_seat_booking/features/booking_seat/presentation/widget/bottom_navigation_widget.dart';
+import 'package:bus_seat_booking/features/booking_seat/widget/bottom_navigation_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -6,11 +6,11 @@ import 'package:bus_seat_booking/core/constants/bus_service.dart';
 import 'package:bus_seat_booking/core/local/booking_local_repository.dart';
 import 'package:bus_seat_booking/core/local/local_boxes.dart';
 import 'package:bus_seat_booking/core/utils/currency_utils.dart';
-import 'package:bus_seat_booking/features/booking_seat/presentation/widget/bus_service_toggle_widget.dart';
-import 'package:bus_seat_booking/features/booking_seat/presentation/page/booking_history_page.dart';
-import 'package:bus_seat_booking/features/booking_seat/presentation/widget/bottom_toast_widget.dart';
-import 'package:bus_seat_booking/features/booking_seat/presentation/widget/legend_dot_widget.dart';
-import 'package:bus_seat_booking/features/booking_seat/presentation/widget/seat_tile_widget.dart';
+import 'package:bus_seat_booking/features/booking_seat/widget/bus_service_toggle_widget.dart';
+import 'package:bus_seat_booking/features/booking_seat/page/booking_history_page.dart';
+import 'package:bus_seat_booking/features/booking_seat/widget/bottom_toast_widget.dart';
+import 'package:bus_seat_booking/features/booking_seat/widget/legend_dot_widget.dart';
+import 'package:bus_seat_booking/features/booking_seat/widget/seat_tile_widget.dart';
 
 class SeatSelectionScreen extends StatefulWidget {
   const SeatSelectionScreen({super.key});
