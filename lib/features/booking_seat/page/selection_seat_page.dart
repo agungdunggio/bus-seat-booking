@@ -5,9 +5,9 @@ import 'package:bus_seat_booking/core/constants/bus_service.dart';
 import 'package:bus_seat_booking/core/local/booking_local_repository.dart';
 import 'package:bus_seat_booking/core/local/local_boxes.dart';
 import 'package:bus_seat_booking/features/booking_seat/widget/bus_service_toggle_widget.dart';
-import 'package:bus_seat_booking/features/booking_seat/page/booking_history_page.dart';
 import 'package:bus_seat_booking/features/booking_seat/widget/bottom_toast_widget.dart';
 import 'package:bus_seat_booking/features/booking_seat/widget/confirm_booking_sheet.dart';
+import 'package:bus_seat_booking/features/booking_seat/widget/booking_history_sheet.dart';
 import 'package:bus_seat_booking/features/booking_seat/widget/legend_dot_widget.dart';
 import 'package:bus_seat_booking/features/booking_seat/widget/seat_tile_widget.dart';
 
@@ -159,11 +159,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
             centerTitle: false,
             actions: [
               IconButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const BookingHistoryPage()),
-                  );
-                },
+                onPressed: () => showBookingHistorySheet(context),
                 icon: const Icon(Icons.history_rounded),
               ),
             ],
@@ -171,104 +167,104 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
             backgroundColor: theme.colorScheme.surface,
           ),
           body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: BusServiceToggleWidget(
-                    value: _service,
-                    onChanged: (v) {
-                      setState(() {
-                        _service = v;
-                        _selectedSeatIds.clear();
-                        _selectedSeatOrder.clear();
-                      });
-                      _repo.sanitizeOrResetReservedSeats(v);
-                    },
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Center(
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      LegendDotWidget(label: 'Tersedia', color: Colors.white),
-                      LegendDotWidget(label: 'Dipilih', color: theme.colorScheme.primary),
-                      LegendDotWidget(label: 'Tidak tersedia', color: Colors.grey),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: ShaderMask(
-                      shaderCallback: (Rect rect) {
-                        return const LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black,
-                          ],
-                          stops: [0.0, 0.10],
-                        ).createShader(rect);
-                      },
-                      blendMode: BlendMode.dstIn,
-                      child: GridView.builder(
-                        padding: const EdgeInsets.only(top: 36, bottom: 18),
-                        gridDelegate:
-                            SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: _service.gridColumns,
-                          mainAxisSpacing: 10,
-                          crossAxisSpacing: 10,
-                          childAspectRatio: _service.seatTileAspectRatio,
-                        ),
-                        itemCount: _service.rows * _service.gridColumns,
-                        itemBuilder: (context, index) {
-                          final row = (index ~/ _service.gridColumns) + 1;
-                          final col = index % _service.gridColumns;
-
-                          if (col == _service.aisleColumnIndex) {
-                            return const SizedBox.shrink();
-                          }
-
-                          final letter = _service.seatLetterForGridColumn(col);
-                          if (letter == null) return const SizedBox.shrink();
-
-                          final seatId = '$row$letter';
-                          final selected = _selectedSeatIds.contains(seatId);
-                          final unavailable = reservedSeatsLive.contains(seatId);
-                          final personNumber = selected
-                              ? (_selectedSeatOrder.indexOf(seatId) + 1)
-                              : null;
-
-                          return SeatTileWidget(
-                            seatId: seatId,
-                            selected: selected,
-                            unavailable: unavailable,
-                            personNumber: personNumber,
-                            onTap: () => _toggleSeat(seatId),
-                          );
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: BusServiceToggleWidget(
+                        value: _service,
+                        onChanged: (v) {
+                          setState(() {
+                            _service = v;
+                            _selectedSeatIds.clear();
+                            _selectedSeatOrder.clear();
+                          });
+                          _repo.sanitizeOrResetReservedSeats(v);
                         },
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 6),
+                    Center(
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          LegendDotWidget(label: 'Tersedia', color: Colors.white),
+                          LegendDotWidget(label: 'Dipilih', color: theme.colorScheme.primary),
+                          LegendDotWidget(label: 'Tidak tersedia', color: Colors.grey),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-        ],
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: ShaderMask(
+                          shaderCallback: (Rect rect) {
+                            return const LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black,
+                              ],
+                              stops: [0.0, 0.10],
+                            ).createShader(rect);
+                          },
+                          blendMode: BlendMode.dstIn,
+                          child: GridView.builder(
+                            padding: const EdgeInsets.only(top: 36, bottom: 18),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: _service.gridColumns,
+                              mainAxisSpacing: 10,
+                              crossAxisSpacing: 10,
+                              childAspectRatio: _service.seatTileAspectRatio,
+                            ),
+                            itemCount: _service.rows * _service.gridColumns,
+                            itemBuilder: (context, index) {
+                              final row = (index ~/ _service.gridColumns) + 1;
+                              final col = index % _service.gridColumns;
+
+                              if (col == _service.aisleColumnIndex) {
+                                return const SizedBox.shrink();
+                              }
+
+                              final letter = _service.seatLetterForGridColumn(col);
+                              if (letter == null) return const SizedBox.shrink();
+
+                              final seatId = '$row$letter';
+                              final selected = _selectedSeatIds.contains(seatId);
+                              final unavailable = reservedSeatsLive.contains(seatId);
+                              final personNumber = selected
+                                  ? (_selectedSeatOrder.indexOf(seatId) + 1)
+                                  : null;
+
+                              return SeatTileWidget(
+                                seatId: seatId,
+                                selected: selected,
+                                unavailable: unavailable,
+                                personNumber: personNumber,
+                                onTap: () => _toggleSeat(seatId),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
           bottomNavigationBar: BottomNavigationWidget(
             selectedSeats: selectedSeats,
