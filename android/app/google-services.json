@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "539043973165",
+    "project_id": "bus-seat-booking-61887",
+    "storage_bucket": "bus-seat-booking-61887.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:539043973165:android:da5ace3ef225d4b28e50a4",
+        "android_client_info": {
+          "package_name": "com.example.bus_seat_booking"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVdgw126T-mMmPCmD4rtQHi0OAiHH2-wo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
