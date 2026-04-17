@@ -1,6 +1,8 @@
 import 'package:bus_seat_booking/domain/usecases/execute_booking_usecase.dart';
+import 'package:bus_seat_booking/domain/entities/booking_notification_payload.dart';
 import 'package:bus_seat_booking/domain/usecases/find_seat_conflicts_usecase.dart';
 import 'package:bus_seat_booking/domain/usecases/get_reserved_seats_usecase.dart';
+import 'package:bus_seat_booking/domain/usecases/send_booking_notification_usecase.dart';
 import 'package:bus_seat_booking/presentation/widgets/bottom_toast_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -10,11 +12,17 @@ import 'package:bus_seat_booking/presentation/confirm_booking/arguments/confirm_
 enum ConfirmBookingState { idle, loading, success, error }
 
 class ConfirmBookingController extends GetxController {
-  ConfirmBookingController(this._executeBooking, this._findConflicts, this._getReservedSeats);
+  ConfirmBookingController(
+    this._executeBooking,
+    this._findConflicts,
+    this._getReservedSeats,
+    this._sendNotification,
+  );
 
   final ExecuteBookingUseCase _executeBooking;
   final FindSeatConflictsUseCase _findConflicts;
   final GetReservedSeatsUseCase _getReservedSeats;
+  final SendBookingNotificationUseCase _sendNotification;
 
   final formKey = GlobalKey<FormState>();
   final nameController = TextEditingController();
@@ -84,6 +92,13 @@ class ConfirmBookingController extends GetxController {
         totalPrice: args.totalPrice,
         passengerName: nameController.text,
         passengerAddress: addressController.text,
+      );
+      await _sendNotification(
+        BookingNotificationPayload(
+          seatIds: args.seatIds,
+          serviceName: args.service.name,
+          bookingDateIso: args.bookingDate.toIso8601String(),
+        ),
       );
 
       state.value = ConfirmBookingState.success;

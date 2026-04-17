@@ -44,6 +44,9 @@ dependencies:
   intl: ^0.20.2
   firebase_core: ^4.7.0
   firebase_messaging: ^16.2.0
+  dio: ^5.9.0
+  googleapis_auth: ^2.0.0
+  flutter_local_notifications: ^21.0.0
 
 dev_dependencies:
   flutter_test:
@@ -66,6 +69,8 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - assets/serviceAccountKey.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:
